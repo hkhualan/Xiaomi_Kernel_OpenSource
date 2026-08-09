@@ -114,18 +114,6 @@ int gzvm_arch_drv_init(void)
 	return 0;
 }
 
-int gzvm_arch_drv_init(void)
-{
-	/* timecycle init mult shift */
-	clocks_calc_mult_shift(&clock_scale_factor.mult,
-			       &clock_scale_factor.shift,
-			       arch_timer_get_cntfrq(),
-			       NSEC_PER_SEC,
-			       30);
-
-	return 0;
-}
-
 int gzvm_arch_set_memregion(u16 vm_id, size_t buf_size,
 			    phys_addr_t region)
 {
