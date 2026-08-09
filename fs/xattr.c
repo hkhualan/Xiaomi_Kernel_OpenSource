@@ -699,7 +699,6 @@ SYSCALL_DEFINE5(fsetxattr, int, fd, const char __user *, name,
 
 	CLASS(fd, f)(fd);
 
-	CLASS(fd, f)(fd);
 	if (!f.file)
 		return -EBADF;
 	audit_file(f.file);

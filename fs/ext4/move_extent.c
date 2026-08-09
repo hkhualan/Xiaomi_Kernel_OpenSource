@@ -36,6 +36,7 @@ get_ext_path(struct inode *inode, ext4_lblk_t lblock,
 		ext4_free_ext_path(path);
 		return -ENODATA;
 	}
+	*ppath = path;
 	return 0;
 }
 

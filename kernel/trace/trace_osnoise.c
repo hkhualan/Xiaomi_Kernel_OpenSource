@@ -2110,8 +2110,6 @@ static void osnoise_hotplug_workfn(struct work_struct *dummy)
 	if (!cpu_online(cpu))
 		return;
 
-	if (!cpu_online(cpu))
-		goto out_unlock;
 	if (!cpumask_test_cpu(cpu, &osnoise_cpumask))
 		return;
 

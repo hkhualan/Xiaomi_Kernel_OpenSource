@@ -919,7 +919,6 @@ int smb2_query_path_info(const unsigned int xid,
 	int num_cmds = 0;
 	int cmds[3];
 	bool islink;
-	int i, num_cmds = 0;
 	int rc, rc2;
 
 	data->adjust_tz = false;

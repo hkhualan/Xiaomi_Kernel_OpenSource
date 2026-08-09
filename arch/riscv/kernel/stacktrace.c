@@ -45,16 +45,6 @@ static inline int fp_is_valid(unsigned long fp, unsigned long sp)
 	return !(fp < low || fp > high || fp & 0x07);
 }
 
-static inline int fp_is_valid(unsigned long fp, unsigned long sp)
-{
-	unsigned long low, high;
-
-	low = sp + sizeof(struct stackframe);
-	high = ALIGN(sp, THREAD_SIZE);
-
-	return !(fp < low || fp > high || fp & 0x07);
-}
-
 void notrace walk_stackframe(struct task_struct *task, struct pt_regs *regs,
 			     bool (*fn)(void *, unsigned long), void *arg)
 {

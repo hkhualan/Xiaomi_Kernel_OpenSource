@@ -3472,16 +3472,6 @@ retry_pids:
 		goto retry_pids;
 	}
 
-	/*
-	 * If no VMAs are remaining and VMAs were skipped due to the PID
-	 * not accessing the VMA previously, then force a scan to ensure
-	 * forward progress:
-	 */
-	if (!vma && !vma_pids_forced && vma_pids_skipped) {
-		vma_pids_forced = true;
-		goto retry_pids;
-	}
-
 out:
 	/*
 	 * It is possible to reach the end of the VMA list but the last few

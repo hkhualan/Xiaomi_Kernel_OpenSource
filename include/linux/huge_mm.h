@@ -303,10 +303,6 @@ unsigned long sum_mthp_stat(int order, enum mthp_stat_item item)
 {
 	return 0;
 }
-unsigned long sum_mthp_stat(int order, enum mthp_stat_item item)
-{
-	return 0;
-}
 #endif
 
 #define transparent_hugepage_use_zero_page()				\

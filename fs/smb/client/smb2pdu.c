@@ -5081,9 +5081,6 @@ replay_again:
 	if (retries)
 		smb2_set_replay(server, &rqst);
 
-	if (retries)
-		smb2_set_replay(server, &rqst);
-
 	rc = cifs_send_recv(xid, io_parms->tcon->ses, server,
 			    &rqst,
 			    &resp_buftype, flags, &rsp_iov);

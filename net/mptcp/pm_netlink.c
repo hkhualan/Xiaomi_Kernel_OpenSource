@@ -717,8 +717,6 @@ static unsigned int fill_local_addresses_vec(struct mptcp_sock *msk,
 
 	mptcp_local_address((struct sock_common *)msk, &mpc_addr);
 
-	mptcp_local_address((struct sock_common *)msk, &mpc_addr);
-
 	rcu_read_lock();
 	list_for_each_entry_rcu(entry, &pernet->local_addr_list, list) {
 		if (!(entry->flags & MPTCP_PM_ADDR_FLAG_FULLMESH))

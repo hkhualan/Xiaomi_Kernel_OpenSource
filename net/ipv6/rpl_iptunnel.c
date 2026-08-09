@@ -308,7 +308,6 @@ static int rpl_input(struct sk_buff *skb)
 		skb_dst_drop(skb);
 		skb_dst_set(skb, dst);
 	}
-	local_bh_enable();
 
 	return dst_input(skb);
 

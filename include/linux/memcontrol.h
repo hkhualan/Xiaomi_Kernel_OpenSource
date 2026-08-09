@@ -375,11 +375,6 @@ int mem_cgroup_move_account(struct folio *folio,
 			    struct mem_cgroup *from,
 			    struct mem_cgroup *to);
 
-int mem_cgroup_move_account(struct folio *folio,
-			    bool compound,
-			    struct mem_cgroup *from,
-			    struct mem_cgroup *to);
-
 /*
  * After the initialization objcg->memcg is always pointing at
  * a valid memcg, but can be atomically swapped to the parent memcg.

@@ -2070,4 +2070,3 @@ const struct font_desc font_ter_16x32 = {
 	.pref	= -1,
 #endif
 };
-EXPORT_SYMBOL(font_ter_16x32);

@@ -291,11 +291,6 @@ replay_again:
 		smb2_set_replay(server, &rqst[1]);
 	}
 
-	if (retries) {
-		smb2_set_replay(server, &rqst[0]);
-		smb2_set_replay(server, &rqst[1]);
-	}
-
 	rc = compound_send_recv(xid, ses, server,
 				flags, 2, rqst,
 				resp_buftype, rsp_iov);

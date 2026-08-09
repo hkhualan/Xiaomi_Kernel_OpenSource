@@ -2987,7 +2987,6 @@ unsigned long __reclaim_pages(struct list_head *folio_list, bool ignore_referenc
 
 	return nr_reclaimed;
 }
-EXPORT_SYMBOL_GPL(reclaim_pages);
 
 unsigned long reclaim_pages(struct list_head *folio_list, bool ignore_references)
 {

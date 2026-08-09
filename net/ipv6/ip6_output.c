@@ -291,7 +291,6 @@ int ip6_xmit(const struct sock *sk, struct sk_buff *skb, struct flowi6 *fl6,
 			ret = -ENOBUFS;
 			goto unlock;
 		}
-		rcu_read_unlock();
 	}
 
 	if (opt) {

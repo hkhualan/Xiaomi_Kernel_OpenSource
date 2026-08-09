@@ -43,7 +43,7 @@ void bcmgenet_get_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 	struct device *kdev = &priv->pdev->dev;
 	u32 phy_wolopts = 0;
 
-	if (dev->phydev)
+	if (dev->phydev) {
 		phy_ethtool_get_wol(dev->phydev, wol);
 		phy_wolopts = wol->wolopts;
 	}

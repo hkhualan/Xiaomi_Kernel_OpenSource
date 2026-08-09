@@ -1756,14 +1756,6 @@ void prep_new_hpage(struct page *page, gfp_t gfp_flags, unsigned int alloc_flags
 EXPORT_SYMBOL_GPL(prep_new_hpage);
 #endif
 
-#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-void prep_new_hpage(struct page *page, gfp_t gfp_flags, unsigned int alloc_flags)
-{
-	return prep_new_page(page, HPAGE_PMD_ORDER, gfp_flags, alloc_flags);
-}
-EXPORT_SYMBOL_GPL(prep_new_hpage);
-#endif
-
 /*
  * Go through the free lists for the given migratetype and remove
  * the smallest available page from the freelists

@@ -1268,8 +1268,6 @@ cleanup_ports:
 
 	debugfs_remove_recursive(lan966x->debugfs_root);
 
-	debugfs_remove_recursive(lan966x->debugfs_root);
-
 	return err;
 }
 

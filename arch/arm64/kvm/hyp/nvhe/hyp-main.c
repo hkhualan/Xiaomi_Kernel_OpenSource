@@ -941,12 +941,6 @@ static struct kvm_vcpu *__get_host_hyp_vcpus(struct kvm_vcpu *arg,
 		__get_host_hyp_vcpus(__vcpu, hyp_vcpup);			\
 	})
 
-static bool is_vcpu_runnable(struct pkvm_hyp_vcpu *hyp_vcpu)
-{
-	return (!pkvm_hyp_vcpu_is_protected(hyp_vcpu) ||
-		hyp_vcpu->power_state == PSCI_0_2_AFFINITY_LEVEL_ON);
-}
-
 static void handle___kvm_vcpu_run(struct kvm_cpu_context *host_ctxt)
 {
 	struct pkvm_hyp_vcpu *hyp_vcpu;

@@ -1180,69 +1180,6 @@ int ksmbd_reopen_durable_fd(struct ksmbd_work *work, struct ksmbd_file *fp)
 	return 0;
 }
 
-int ksmbd_validate_name_reconnect(struct ksmbd_share_config *share,
-				  struct ksmbd_file *fp, char *name)
-{
-	char *pathname, *ab_pathname;
-	int ret = 0;
-
-	pathname = kmalloc(PATH_MAX, GFP_KERNEL);
-	if (!pathname)
-		return -EACCES;
-
-	ab_pathname = d_path(&fp->filp->f_path, pathname, PATH_MAX);
-	if (IS_ERR(ab_pathname)) {
-		kfree(pathname);
-		return -EACCES;
-	}
-
-	if (name && strcmp(&ab_pathname[share->path_sz + 1], name)) {
-		ksmbd_debug(SMB, "invalid name reconnect %s\n", name);
-		ret = -EINVAL;
-	}
-
-	kfree(pathname);
-
-	return ret;
-}
-
-int ksmbd_reopen_durable_fd(struct ksmbd_work *work, struct ksmbd_file *fp)
-{
-	struct ksmbd_inode *ci;
-	struct oplock_info *op;
-
-	if (!fp->is_durable || fp->conn || fp->tcon) {
-		pr_err("Invalid durable fd [%p:%p]\n", fp->conn, fp->tcon);
-		return -EBADF;
-	}
-
-	if (has_file_id(fp->volatile_id)) {
-		pr_err("Still in use durable fd: %llu\n", fp->volatile_id);
-		return -EBADF;
-	}
-
-	fp->conn = work->conn;
-	fp->tcon = work->tcon;
-
-	ci = fp->f_ci;
-	down_write(&ci->m_lock);
-	list_for_each_entry_rcu(op, &ci->m_op_list, op_entry) {
-		if (op->conn)
-			continue;
-		op->conn = fp->conn;
-		atomic_inc(&op->conn->refcnt);
-	}
-	up_write(&ci->m_lock);
-
-	__open_id(&work->sess->file_table, fp, OPEN_ID_TYPE_VOLATILE_ID);
-	if (!has_file_id(fp->volatile_id)) {
-		fp->conn = NULL;
-		fp->tcon = NULL;
-		return -EBADF;
-	}
-	return 0;
-}
-
 int ksmbd_init_file_table(struct ksmbd_file_table *ft)
 {
 	ft->idr = kzalloc(sizeof(struct idr), GFP_KERNEL);

@@ -173,13 +173,6 @@ static struct max16065_data *max16065_update_device(struct device *dev)
 			WRITE_ONCE(data->fault[0],
 				   data->fault[0] | data->fault[1]);
 
-		/*
-		 * MAX16067 and MAX16068 have separate undervoltage and
-		 * overvoltage alarm bits. Squash them together.
-		 */
-		if (data->chip == max16067 || data->chip == max16068)
-			data->fault[0] |= data->fault[1];
-
 		data->last_updated = jiffies;
 		data->valid = true;
 	}

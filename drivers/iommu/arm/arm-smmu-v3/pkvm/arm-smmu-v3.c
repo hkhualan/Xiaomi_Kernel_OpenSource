@@ -373,13 +373,6 @@ static void smmu_free_cd(__le64 *cd_table, u32 pasid_bits)
 	kvm_iommu_reclaim_pages(cd_table, order);
 }
 
-static void smmu_free_cd(u64 *cd_table, u32 pasid_bits)
-{
-	u32 order  = get_order((1 << pasid_bits) * (CTXDESC_CD_DWORDS << 3));
-
-	kvm_iommu_reclaim_pages(cd_table, order);
-}
-
 static int smmu_init_registers(struct hyp_arm_smmu_v3_device *smmu)
 {
 	u64 val, old;

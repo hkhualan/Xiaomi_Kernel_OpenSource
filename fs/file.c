@@ -312,7 +312,6 @@ struct files_struct *dup_fd(struct files_struct *oldf, struct fd_range *punch_ho
 	struct file **old_fds, **new_fds;
 	unsigned int open_files, i;
 	struct fdtable *old_fdt, *new_fdt;
-	int error;
 
 	newf = kmem_cache_alloc(files_cachep, GFP_KERNEL);
 	if (!newf)
@@ -760,9 +759,6 @@ int __close_range(unsigned fd, unsigned max_fd, unsigned int flags)
 		if (IS_ERR(fds))
 			return PTR_ERR(fds);
 
-		fds = dup_fd(cur_fds, punch_hole);
-		if (IS_ERR(fds))
-			return PTR_ERR(fds);
 		/*
 		 * This is a new partial sharing relationship, since we have a new files_struct.
 		 * Since partial sharing is not supported for dmabuf accounting, we need to remove

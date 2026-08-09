@@ -1687,15 +1687,6 @@ int do_madvise(struct mm_struct *mm, unsigned long start, size_t len_in, int beh
 	start = get_untagged_addr(mm, start);
 	end = start + len;
 
-	/*
-	 * Check if the address range is sealed for do_madvise().
-	 * can_modify_mm_madv assumes we have acquired the lock on MM.
-	 */
-	if (unlikely(!can_modify_mm_madv(mm, start, end, behavior))) {
-		error = -EPERM;
-		goto out;
-	}
-
 	blk_start_plug(&plug);
 	error = madvise_walk_vmas(mm, start, end, &madv_behavior,
 			&madv_behavior, madvise_vma_behavior);

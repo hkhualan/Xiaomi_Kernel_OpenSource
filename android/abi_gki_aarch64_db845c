@@ -261,9 +261,6 @@
   drm_mode_vrefresh
   drm_of_find_panel_or_bridge
   drm_printf
-  drm_rect_rotate
-  drm_rect_rotate_inv
-  drmm_kmalloc
   enable_irq
   eth_type_trans
   _find_first_bit
@@ -461,7 +458,6 @@
   misc_register
   mod_delayed_work_on
   mod_timer
-  __module_get
   module_layout
   module_put
   __msecs_to_jiffies
@@ -588,7 +584,6 @@
   prepare_to_wait_event
   print_hex_dump
   _printk
-  __pskb_copy_fclone
   pskb_expand_head
   __pskb_pull_tail
   put_device

@@ -46,18 +46,6 @@ DECLARE_HOOK(android_vh_mmc_gpio_cd_irqt,
 	TP_PROTO(struct mmc_host *host),
 	TP_ARGS(host));
 
-DECLARE_RESTRICTED_HOOK(android_rvh_mmc_suspend,
-	TP_PROTO(struct mmc_host *host),
-	TP_ARGS(host), 1);
-
-DECLARE_RESTRICTED_HOOK(android_rvh_mmc_resume,
-	TP_PROTO(struct mmc_host *host, bool *resume_success),
-	TP_ARGS(host, resume_success), 1);
-
-DECLARE_HOOK(android_vh_mmc_update_mmc_queue,
-	TP_PROTO(struct mmc_card *card, struct mmc_queue *mq),
-	TP_ARGS(card, mq));
-
 #endif /* _TRACE_HOOK_MMC_H */
 /* This part must be outside protection */
 #include <trace/define_trace.h>
