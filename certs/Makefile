@@ -85,4 +85,8 @@ targets += x509_revocation_list
 hostprogs := extract-cert
 
 HOSTCFLAGS_extract-cert.o = $(shell $(HOSTPKG_CONFIG) --cflags libcrypto 2> /dev/null)
+# AOSP tree's extract-cert.c compiles the PKCS#11 ENGINE path whenever
+# OPENSSL_IS_BORINGSSL is not defined, but only declares key_pass under
+# USE_PKCS11_ENGINE. Define it so the host tool builds with plain OpenSSL.
+HOSTCFLAGS_extract-cert.o += -DUSE_PKCS11_ENGINE
 HOSTLDLIBS_extract-cert = $(shell $(HOSTPKG_CONFIG) --libs libcrypto 2> /dev/null || echo -lcrypto)
