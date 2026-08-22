@@ -3,8 +3,6 @@ name: Build Kernel with Clang
 on:
   push:
     branches:
-      - main
-      - master
       - bsp-dali-v-oss
   pull_request:
     branches:
@@ -17,16 +15,16 @@ on:
         required: false
         default: 'false'
 
-env:
-  KERNEL_DIR: Xiaomi_Kernel_OpenSource-bsp-dali-v-oss
-  CLANG_VERSION: "18"
-  LLVM_VERSION: "18"
-
 jobs:
   build-kernel:
-    name: Build Kernel Image (Clang ${{ env.CLANG_VERSION }})
+    name: Build Kernel Image (Clang 18)
     runs-on: ubuntu-24.04
     timeout-minutes: 90
+
+    env:
+      KERNEL_DIR: Xiaomi_Kernel_OpenSource-bsp-dali-v-oss
+      CLANG_VER: "18"
+      LLVM_VER: "18"
 
     steps:
       - name: Checkout repository
@@ -91,12 +89,12 @@ jobs:
 
       - name: Prepare kernel source
         run: |
-          if [ ! -d "${{ env.KERNEL_DIR }}" ]; then
+          if [ ! -d "$KERNEL_DIR" ]; then
             echo "Error: Kernel source directory not found!"
             exit 1
           fi
           
-          cd ${{ env.KERNEL_DIR }}
+          cd "$KERNEL_DIR"
           
           # Show kernel version
           head -n 5 Makefile
@@ -111,23 +109,20 @@ jobs:
       - name: Clean build (optional)
         if: github.event.inputs.clean_build == 'true'
         run: |
-          cd ${{ env.KERNEL_DIR }}
+          cd "$KERNEL_DIR"
           make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- clean
 
       - name: Build Kernel Image with Clang
         run: |
-          cd ${{ env.KERNEL_DIR }}
+          cd "$KERNEL_DIR"
           
           # Set compiler variables
-          CLANG_VER="18"
-          LLVM_VER="18"
-          
-          export CC=clang-${CLANG_VER}
-          export LD=ld.lld-${LLVM_VER}
-          export AR=llvm-ar-${LLVM_VER}
-          export NM=llvm-nm-${LLVM_VER}
-          export OBJCOPY=llvm-objcopy-${LLVM_VER}
-          export STRIP=llvm-strip-${LLVM_VER}
+          export CC=clang-$CLANG_VER
+          export LD=ld.lld-$LLVM_VER
+          export AR=llvm-ar-$LLVM_VER
+          export NM=llvm-nm-$LLVM_VER
+          export OBJCOPY=llvm-objcopy-$LLVM_VER
+          export STRIP=llvm-strip-$LLVM_VER
           
           # Build only Image target (skip device trees)
           # This is suitable for phones that use stock DTB
@@ -170,11 +165,11 @@ jobs:
           if-no-files-found: ignore
 
       - name: Create Release (on tag)
-        if: startsWith(ithub.ref, 'refs/tags/')
+        if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
           files: ${{ env.KERNEL_DIR }}/arch/arm64/boot/Image
-          body: |
+   body: |
             ## Kernel Image Build
             
             **Compiler**: Clang 18 / LLVM 18
