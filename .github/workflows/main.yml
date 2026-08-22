@@ -1,0 +1,191 @@
+name: Build Kernel with Clang
+
+on:
+  push:
+    branches:
+      - main
+      - master
+      - bsp-dali-v-oss
+  pull_request:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+    inputs:
+      clean_build:
+        description: 'Clean build (remove previous artifacts)'
+        required: false
+        default: 'false'
+
+env:
+  KERNEL_DIR: Xiaomi_Kernel_OpenSource-bsp-dali-v-oss
+  CLANG_VERSION: "18"
+  LLVM_VERSION: "18"
+
+jobs:
+  build-kernel:
+    name: Build Kernel Image (Clang ${{ env.CLANG_VERSION }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          submodules: recursive
+
+      - name: Setup build environment
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            bc \
+            bison \
+            flex \
+            libssl-dev \
+            libelf-dev \
+            pahole \
+            xz-utils \
+            gzip \
+            make \
+            gcc \
+            binutils \
+            kmod \
+            cpio \
+            rsync \
+            jq
+
+      - name: Install Clang ${{ env.CLANG_VERSION }} and LLVM tools
+        run: |
+          # Add LLVM repository
+          wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
+          sudo add-apt-repository "deb http://apt.llvm.org/noble/ llvm-toolchain-noble-${{ env.CLANG_VERSION }} main"
+          sudo apt-get update
+          
+          # Install Clang and LLVM tools (all version ${{ env.CLANG_VERSION }})
+          sudo apt-get install -y \
+            clang-${{ env.CLANG_VERSION }} \
+            lld-${{ env.LLVM_VERSION }} \
+            llvm-${{ env.LLVM_VERSION }} \
+            llvm-ar-${{ env.LLVM_VERSION }} \
+            llvm-nm-${{ env.LLVM_VERSION }} \
+            llvm-objcopy-${{ env.LLVM_VERSION }} \
+            llvm-strip-${{ env.LLVM_VERSION }} \
+            llvm-objdump-${{ env.LLVM_VERSION }}
+
+          # Verify installation
+          echo "Clang version:"
+          clang-${{ env.CLANG_VERSION }} --version
+          echo "LLD version:"
+          ld.lld-${{ env.LLVM_VERSION }} --version
+
+      - name: Create compiler symlinks
+        run: |
+          # Create symlinks for easier Makefile integration
+          sudo ln -sf /usr/bin/clang-${{ env.CLANG_VERSION }} /usr/local/bin/clang
+          sudo ln -sf /usr/bin/ld.lld-${{ env.LLVM_VERSION }} /usr/local/bin/ld.lld
+          sudo ln -sf /usr/bin/llvm-ar-${{ env.LLVM_VERSION }} /usr/local/bin/llvm-ar
+          sudo ln -sf /usr/bin/llvm-nm-${{ env.LLVM_VERSION }} /usr/local/bin/llvm-nm
+          sudo ln -sf /usr/bin/llvm-objcopy-${{ env.LLVM_VERSION }} /usr/local/bin/llvm-objcopy
+          sudo ln -sf /usr/bin/llvm-strip-${{ env.LLVM_VERSION }} /usr/local/bin/llvm-strip
+
+      - name: Prepare kernel source
+        run: |
+          if [ ! -d "${{ env.KERNEL_DIR }}" ]; then
+            echo "Error: Kernel source directory not found!"
+            exit 1
+          fi
+          
+          cd ${{ env.KERNEL_DIR }}
+          
+          # Show kernel version
+          head -n 5 Makefile
+          
+          # Check if .config exists, if not we need to provide one
+          if [ ! -f ".config" ]; then
+            echo "Warning: No .config file found. You need to provide a kernel config."
+            # Example: copy from a known config
+            # cp arch/arm64/configs/dali_defconfig .config
+          fi
+
+      - name: Clean build (optional)
+        if: github.event.inputs.clean_build == 'true'
+        run: |
+          cd ${{ env.KERNEL_DIR }}
+          make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- clean
+
+      - name: Build Kernel Image with Clang
+        run: |
+          cd ${{ env.KERNEL_DIR }}
+          
+          # Set compiler variables
+          export CC=clang-${{ env.CLANG_VERSION }}
+          export LD=ld.lld-${{ env.LLVM_VERSION }}
+          export AR=llvm-ar-${{ env.LLVM_VERSION }}
+          export NM=llvm-nm-${{ env.LLVM_VERSION }}
+          export OBJCOPY=llvm-objcopy-${{ env.LLVM_VERSION }}
+          export STRIP=llvm-strip-${{ env.LLVM_VERSION }}
+          
+          # Build only Image target (skip device trees)
+          # This is suitable for phones that use stock DTB
+          make ARCH=arm64 \
+            CROSS_COMPILE=aarch64-linux-gnu- \
+            CC=$CC \
+            LD=$LD \
+            AR=$AR \
+            NM=$NM \
+            OBJCOPY=$OBJCOPY \
+            -j$(nproc) \
+            Image 2>&1 | tee ../kernel-build.log
+          
+          # Check build result
+          echo ""
+          echo "=== Build Summary ==="
+          if [ -f "arch/arm64/boot/Image" ]; then
+            echo "✅ Image built successfully!"
+            ls -lh arch/arm64/boot/Image
+          else
+            echo "❌ Image build failed!"
+            exit 1
+          fi
+
+      - name: Upload Kernel Image
+        uses: actions/upload-artifact@v4
+        with:
+          name: Image-Clang${{ env.CLANG_VERSION }}-${{ github.sha }}
+          path: ${{ env.KERNEL_DIR }}/arch/arm64/boot/Image
+          retention-days: 30
+          if-no-files-found: error
+
+      - name: Upload Build Log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kernel-build-log
+          path: kernel-build.log
+          retention-days: 7
+          if-no-files-found: ignore
+
+      - name: Create Release (on tag)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ env.KERNEL_DIR }}/arch/arm64/boot/Image
+          body: |
+            ## Kernel Image Build
+            
+            **Compiler**: Clang ${{ env.CLANG_VERSION }} / LLVM ${{ env.LLVM_VERSION }}
+            **Platform**: Ubuntu 24.04
+            **Target**: Redmi K80 Ultra (dali)
+            
+            ### Build Info
+            - Kernel: Linux 6.6.142
+            - Architecture: arm64
+            - Output: Uncompressed Image
+            
+            ### Notes
+            - Device trees are NOT included (uses stock DTB)
+            - IO scheduler optimized: DEFAULT_IOSCHED=none
+            
+            ### Installation
+            Flash via AnyKernel3 or custom recovery.
