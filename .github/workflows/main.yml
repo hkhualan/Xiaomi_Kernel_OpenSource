@@ -18,17 +18,15 @@ jobs:
 
     env:
       KERNEL_DIR: Xiaomi_Kernel_OpenSource-bsp-dali-v-oss
-      CLANG_VER: "18"
-      LLVM_VER: "18"
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v4
         with:
           fetch-depth: 1
           submodules: recursive
 
-      - name: Setup build environment
+      - name: Install build dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y \
@@ -46,95 +44,71 @@ jobs:
             kmod \
             cpio \
             rsync \
-            jq \
-            software-properties-common \
-            wget \
-            gnupg \
-            ca-certificates
-
-      - name: Install Clang 18 and LLVM tools
-        run: |
-          # Add LLVM repository GPG key (modern method)
-          wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key | \
-            sudo tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc > /dev/null
-          
-          # Add LLVM repository
-          sudo add-apt-repository -y "deb http://apt.llvm.org/noble/ llvm-toolchain-noble-18 main"
-          
-          # Update and install
-          sudo apt-get update
-          sudo apt-get install -y \
             clang-18 \
             lld-18 \
             llvm-18 \
             llvm-ar-18 \
-            llvm-nm-18 \
-            llvm-objcopy-18 \
-            llvm-strip-18
-
-          # Verify installation
-          echo "=== Compiler Versions ==="
-          clang-18 --version | head -3
-          ld.lld-18 --version | head -2
+            llvm-objcopy-18
 
       - name: Create compiler symlinks
         run: |
           sudo ln -sf /usr/bin/clang-18 /usr/local/bin/clang
           sudo ln -sf /usr/bin/ld.lld-18 /usr/local/bin/ld.lld
           sudo ln -sf /usr/bin/llvm-ar-18 /usr/local/bin/llvm-ar
-          sudo ln -sf /usr/bin/llvm-nm-18 /usr/local/bin/llvm-nm
           sudo ln -sf /usr/bin/llvm-objcopy-18 /usr/local/bin/llvm-objcopy
-          sudo ln -sf /usr/bin/llvm-strip-18 /usr/local/bin/llvm-strip
 
-      - name: Prepare kernel source
+      - name: Verify compiler versions
         run: |
-          if [ ! -d "$KERNEL_DIR" ]; then
+          echo "=== Compiler Versions ==="
+          clang-18 --version
+          ld.lld-18 --version
+          llvm-ar-18 --version
+
+      - name: Check kernel source
+        run: |
+          if [ ! -d "${{ env.KERNEL_DIR }}" ]; then
             echo "Error: Kernel source directory not found!"
+            ls -la
             exit 1
           fi
-          cd "$KERNEL_DIR"
-          head -n 5 Makefile
-          if [ ! -f ".config" ]; then
-            echo "Warning: No .config file found!"
-          fi
+          cd ${{ env.KERNEL_DIR }}
+          echo "Kernel source found:"
+          ls -la Makefile .config 2>/dev/null || echo "No .config found"
 
-      - name: Build Kernel Image with Clang
+      - name: Build Kernel Image
         run: |
-          cd "$KERNEL_DIR"
-          export CC=clang-$CLANG_VER
-          export LD=ld.lld-$LLVM_VER
-          export AR=llvm-ar-$LLVM_VER
-          export NM=llvm-nm-$LLVM_VER
-          export OBJCOPY=llvm-objcopy-$LLVM_VER
+          cd ${{ env.KERNEL_DIR }}
+          
+          export CC=clang-18
+          export LD=ld.lld-18
+          export AR=llvm-ar-18
+          export OBJCOPY=llvm-objcopy-18
+          
           make ARCH=arm64 \
             CROSS_COMPILE=aarch64-linux-gnu- \
             CC=$CC \
             LD=$LD \
             AR=$AR \
-            NM=$NM \
             OBJCOPY=$OBJCOPY \
             -j$(nproc) \
-            Image 2>&1 | tee ../kernel-build.log
-          echo "=== Build Summary ==="
+            Image
+
+      - name: Verify build output
+        run: |
+          cd ${{ env.KERNEL_DIR }}
+          echo "=== Build Output ==="
           if [ -f "arch/arm64/boot/Image" ]; then
-            echo "Image built successfully!"
+            echo "SUCCESS: Image built!"
             ls -lh arch/arm64/boot/Image
           else
-            echo "Image build failed!"
+            echo "FAILED: Image not found!"
+            ls -la arch/arm64/boot/
             exit 1
           fi
 
       - name: Upload Kernel Image
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v4
         with:
           name: Image-Clang18
           path: ${{ env.KERNEL_DIR }}/arch/arm64/boot/Image
           retention-days: 30
-
-      - name: Upload Build Log
-        if: always()
-        uses: actions/upload-artifact@v5
-        with:
-          name: kernel-build-log
-          path: ${{ github.workspace }}/kernel-build.log
-          retention-days: 7
