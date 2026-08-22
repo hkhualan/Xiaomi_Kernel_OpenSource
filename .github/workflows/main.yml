@@ -131,4 +131,3 @@ jobs:
           path: ${{ env.KERNEL_DIR }}/arch/arm64/boot/Image
           retention-days: 30
           if-no-files-found: error
-          if-no-files-found: error
