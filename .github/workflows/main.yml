@@ -17,7 +17,6 @@ jobs:
     timeout-minutes: 90
 
     env:
-      KERNEL_DIR: Xiaomi_Kernel_OpenSource-bsp-dali-v-oss
       CLANG_VER: "18"
       LLVM_VER: "18"
 
@@ -26,7 +25,6 @@ jobs:
         uses: actions/checkout@v5
         with:
           fetch-depth: 1
-          submodules: recursive
 
       - name: Setup build environment
         run: |
@@ -46,40 +44,32 @@ jobs:
             kmod \
             cpio \
             rsync \
+            software-properties-common \
             wget \
             gnupg \
-            ca-certificates \
-            software-properties-common
+            ca-certificates
 
-      - name: Install Clang 18 and LLVM tools
+      - name: Add LLVM 18 repository
         run: |
-          # Add LLVM 18 repository for Ubuntu 24.04 (noble)
+          # Add GPG key
           wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key | \
             sudo tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc > /dev/null
           
+          # Add LLVM 18 repository for Ubuntu 24.04 (noble)
           sudo add-apt-repository \
             "deb http://apt.llvm.org/noble/ llvm-toolchain-noble-18 main"
           
           sudo apt-get update
-          
-          # Install Clang and LLVM tools
-          # Note: llvm-ar and llvm-objcopy are included in llvm-18 package
+
+      - name: Install Clang 18 and LLVM tools
+        run: |
           sudo apt-get install -y \
             clang-18 \
             lld-18 \
             llvm-18 \
             llvm-18-dev \
             libclang-18-dev
-
-          # Verify installation
-          echo "=== Compiler Versions ==="
-          clang-18 --version
-          ld.lld-18 --version
-          llvm-ar-18 --version
-          llvm-objcopy-18 --version
-
-      - name: Create compiler symlinks
-        run: |
+          
           # Create symlinks for easier Makefile integration
           sudo ln -sf /usr/bin/clang-18 /usr/local/bin/clang
           sudo ln -sf /usr/bin/ld.lld-18 /usr/local/bin/ld.lld
@@ -87,22 +77,45 @@ jobs:
           sudo ln -sf /usr/bin/llvm-nm-18 /usr/local/bin/llvm-nm
           sudo ln -sf /usr/bin/llvm-objcopy-18 /usr/local/bin/llvm-objcopy
           sudo ln -sf /usr/bin/llvm-strip-18 /usr/local/bin/llvm-strip
+          
+          # Verify installation
+          echo "=== Compiler Versions ==="
+          clang-18 --version | head -3
+          ld.lld-18 --version | head -2
 
       - name: Check kernel source
         run: |
-          if [ ! -d "${{ env.KERNEL_DIR }}" ]; then
-            echo "Error: Kernel source directory '${{ env.KERNEL_DIR }}' not found!"
-            echo "Available directories:"
-            ls -la
+          echo "=== Kernel Source Check ==="
+          pwd
+          ls -la
+          
+          # Verify this is a kernel source tree
+          if [ ! -f "Makefile" ]; then
+            echo "Error: Makefile not found!"
             exit 1
           fi
-          echo "Kernel source found: ${{ env.KERNEL_DIR }}"
-          ls -la ${{ env.KERNEL_DIR }} | head -20
+          
+          if [ ! -f "arch/arm64/boot/Makefile" ]; then
+            echo "Error: arch/arm64/boot/Makefile not found!"
+            exit 1
+          fi
+          
+          # Show kernel version
+          echo "=== Kernel Version ==="
+          head -n 5 Makefile
+
+      - name: Check kernel config
+        run: |
+          if [ ! -f ".config" ]; then
+            echo "Warning: No .config file found!"
+            echo "Please provide a kernel config file."
+            exit 1
+          fi
+          echo "=== Kernel Config ==="
+          head -n 20 .config
 
       - name: Build Kernel Image with Clang
         run: |
-          cd ${{ env.KERNEL_DIR }}
-          
           # Set compiler variables
           export CC=clang-18
           export LD=ld.lld-18
@@ -112,6 +125,7 @@ jobs:
           export STRIP=llvm-strip-18
           
           # Build only Image target (skip device trees)
+          # This is suitable for phones that use stock DTB
           make ARCH=arm64 \
             CROSS_COMPILE=aarch64-linux-gnu- \
             CC=$CC \
@@ -120,21 +134,17 @@ jobs:
             NM=$NM \
             OBJCOPY=$OBJCOPY \
             -j$(nproc) \
-            Image 2>&1 | tee ${{ github.workspace }}/kernel-build.log
-          
-          echo ""
-          echo "=== Build Complete ==="
+            Image
 
       - name: Verify build output
         run: |
-          echo "=== Checking Output Files ==="
-          if [ -f "${{ env.KERNEL_DIR }}/arch/arm64/boot/Image" ]; then
+          echo "=== Build Output ==="
+          if [ -f "arch/arm64/boot/Image" ]; then
             echo "✅ Image built successfully!"
-            ls -lh ${{ env.KERNEL_DIR }}/arch/arm64/boot/Image
+            ls -lh arch/arm64/boot/Image
+            file arch/arm64/boot/Image
           else
-            echo "❌ Image not found!"
-            echo "Contents of arch/arm64/boot/:"
-            ls -la ${{ env.KERNEL_DIR }}/arch/arm64/boot/ || true
+            echo "❌ Image build failed!"
             exit 1
           fi
 
@@ -142,6 +152,6 @@ jobs:
         uses: actions/upload-artifact@v5
         with:
           name: Image-Clang18-${{ github.sha }}
-          path: ${{ env.KERNEL_DIR }}/arch/arm64/boot/Image
+          path: arch/arm64/boot/Image
           retention-days: 30
           if-no-files-found: error
