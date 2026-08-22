@@ -9,11 +9,6 @@ on:
       - main
       - master
   workflow_dispatch:
-    inputs:
-      clean_build:
-        description: 'Clean build (remove previous artifacts)'
-        required: false
-        default: 'false'
 
 jobs:
   build-kernel:
@@ -28,7 +23,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 1
           submodules: recursive
@@ -55,12 +50,9 @@ jobs:
 
       - name: Install Clang 18 and LLVM tools
         run: |
-          # Add LLVM repository
           wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
           sudo add-apt-repository "deb http://apt.llvm.org/noble/ llvm-toolchain-noble-18 main"
           sudo apt-get update
-          
-          # Install Clang and LLVM tools (all version 18)
           sudo apt-get install -y \
             clang-18 \
             lld-18 \
@@ -70,16 +62,11 @@ jobs:
             llvm-objcopy-18 \
             llvm-strip-18 \
             llvm-objdump-18
-
-          # Verify installation
-          echo "Clang version:"
           clang-18 --version
-          echo "LLD version:"
           ld.lld-18 --version
 
       - name: Create compiler symlinks
         run: |
-          # Create symlinks for easier Makefile integration
           sudo ln -sf /usr/bin/clang-18 /usr/local/bin/clang
           sudo ln -sf /usr/bin/ld.lld-18 /usr/local/bin/ld.lld
           sudo ln -sf /usr/bin/llvm-ar-18 /usr/local/bin/llvm-ar
@@ -93,39 +80,20 @@ jobs:
             echo "Error: Kernel source directory not found!"
             exit 1
           fi
-          
           cd "$KERNEL_DIR"
-          
-          # Show kernel version
           head -n 5 Makefile
-          
-          # Check if .config exists, if not we need to provide one
           if [ ! -f ".config" ]; then
-            echo "Warning: No .config file found. You need to provide a kernel config."
-            # Example: copy from a known config
-            # cp arch/arm64/configs/dali_defconfig .config
+            echo "Warning: No .config file found!"
           fi
-
-      - name: Clean build (optional)
-        if: github.event.inputs.clean_build == 'true'
-        run: |
-          cd "$KERNEL_DIR"
-          make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- clean
 
       - name: Build Kernel Image with Clang
         run: |
           cd "$KERNEL_DIR"
-          
-          # Set compiler variables
           export CC=clang-$CLANG_VER
           export LD=ld.lld-$LLVM_VER
           export AR=llvm-ar-$LLVM_VER
           export NM=llvm-nm-$LLVM_VER
           export OBJCOPY=llvm-objcopy-$LLVM_VER
-          export STRIP=llvm-strip-$LLVM_VER
-          
-          # Build only Image target (skip device trees)
-          # This is suitable for phones that use stock DTB
           make ARCH=arm64 \
             CROSS_COMPILE=aarch64-linux-gnu- \
             CC=$CC \
@@ -135,55 +103,26 @@ jobs:
             OBJCOPY=$OBJCOPY \
             -j$(nproc) \
             Image 2>&1 | tee ../kernel-build.log
-          
-          # Check build result
-          echo ""
           echo "=== Build Summary ==="
           if [ -f "arch/arm64/boot/Image" ]; then
-            echo "✅ Image built successfully!"
+            echo "Image built successfully!"
             ls -lh arch/arm64/boot/Image
           else
-            echo "❌ Image build failed!"
+            echo "Image build failed!"
             exit 1
           fi
 
       - name: Upload Kernel Image
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
-          name: Image-Clang18-${{ github.sha }}
+          name: Image-Clang18
           path: ${{ env.KERNEL_DIR }}/arch/arm64/boot/Image
           retention-days: 30
-          if-no-files-found: error
 
       - name: Upload Build Log
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: kernel-build-log
           path: kernel-build.log
           retention-days: 7
-          if-no-files-found: ignore
-
-      - name: Create Release (on tag)
-        if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v2
-        with:
-          files: ${{ env.KERNEL_DIR }}/arch/arm64/boot/Image
-   body: |
-            ## Kernel Image Build
-            
-            **Compiler**: Clang 18 / LLVM 18
-            **Platform**: Ubuntu 24.04
-            **Target**: Redmi K80 Ultra (dali)
-            
-            ### Build Info
-            - Kernel: Linux 6.6.142
-            - Architecture: arm64
-            - Output: Uncompressed Image
-            
-            ### Notes
-            - Device trees are NOT included (uses stock DTB)
-            - IO scheduler optimized: DEFAULT_IOSCHED=none
-            
-            ### Installation
-            Flash via AnyKernel3 or custom recovery.
