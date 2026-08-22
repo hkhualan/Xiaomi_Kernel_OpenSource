@@ -46,12 +46,22 @@ jobs:
             kmod \
             cpio \
             rsync \
-            jq
+            jq \
+            software-properties-common \
+            wget \
+            gnupg \
+            ca-certificates
 
       - name: Install Clang 18 and LLVM tools
         run: |
-          wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
-          sudo add-apt-repository "deb http://apt.llvm.org/noble/ llvm-toolchain-noble-18 main"
+          # Add LLVM repository GPG key (modern method)
+          wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key | \
+            sudo tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc > /dev/null
+          
+          # Add LLVM repository
+          sudo add-apt-repository -y "deb http://apt.llvm.org/noble/ llvm-toolchain-noble-18 main"
+          
+          # Update and install
           sudo apt-get update
           sudo apt-get install -y \
             clang-18 \
@@ -60,10 +70,12 @@ jobs:
             llvm-ar-18 \
             llvm-nm-18 \
             llvm-objcopy-18 \
-            llvm-strip-18 \
-            llvm-objdump-18
-          clang-18 --version
-          ld.lld-18 --version
+            llvm-strip-18
+
+          # Verify installation
+          echo "=== Compiler Versions ==="
+          clang-18 --version | head -3
+          ld.lld-18 --version | head -2
 
       - name: Create compiler symlinks
         run: |
@@ -124,5 +136,5 @@ jobs:
         uses: actions/upload-artifact@v5
         with:
           name: kernel-build-log
-          path: kernel-build.log
+          path: ${{ github.workspace }}/kernel-build.log
           retention-days: 7
